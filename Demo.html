@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Façade Experience UI - Live Prototype</title>
+    <style>
+        :root {
+            /* Palette from image_0.png */
+            --bg-page: #010118;
+            --bg-phone: #080a22;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --text-dimmer: #64748b;
+            --accent-green: #4ade80; /* "SYNC COMPLETE!" */
+            --accent-latency: #ff007f; /* Latency label */
+            --btn-pink: #c084fc;
+            --btn-cyan: #22d3ee;
+            --glow: 0 0 15px rgba(34, 211, 238, 0.3);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Phone Frame */
+        .phone-mockup {
+            background-color: var(--bg-phone);
+            width: 100%;
+            max-width: 380px;
+            height: calc(100vh - 40px);
+            border-radius: 40px;
+            box-shadow: 0 0 50px rgba(6, 182, 212, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Global Header for all states */
+        header {
+            padding: 1rem 1.5rem;
+            text-align: left;
+        }
+
+        .main-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 0 0 0.5rem 0;
+        }
+
+        .experience-header {
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            gap: 10px;
+        }
+
+        .circle-icon {
+            width: 12px;
+            height: 12px;
+            background-color: var(--accent-green);
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* Main Content Area */
+        main {
+            flex-grow: 1;
+            padding: 0 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-evenly;
+            text-align: center;
+        }
+
+        /* State Container */
+        .state {
+            display: none; /* Hidden by default */
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+        }
+
+        .state.active {
+            display: flex; /* Shown when active */
+        }
+
+        /* Generic Buttons from design */
+        .btn {
+            border: none;
+            border-radius: 10px;
+            padding: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-sync {
+            background: linear-gradient(135deg, var(--btn-cyan) 0%, var(--btn-pink) 100%);
+            color: #000;
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.5);
+        }
+
+        .text-description {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 1.5rem 0;
+        }
+
+        .sub-text {
+            color: var(--text-dimmer);
+            font-size: 0.75rem;
+        }
+
+        /* STATE 1: LANDING & CONNECT */
+        #state-landing .hand-graphic {
+            font-size: 4rem;
+            position: absolute;
+            bottom: -30px;
+            right: 0px;
+            transform: rotate(-10deg);
+            opacity: 0.8;
+            color: var(--btn-cyan);
+            pointer-events: none;
+        }
+
+        /* STATE 2: SYNCING */
+        #state-syncing .visual-sphere {
+            font-size: 10rem;
+            line-height: 1;
+            color: var(--text-main);
+            margin: 1rem 0;
+            position: relative;
+        }
+
+        #state-syncing .timestamp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: monospace;
+            font-size: 1rem;
+            color: var(--text-main);
+            font-weight: bold;
+        }
+
+        .sync-label {
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            margin: 1rem 0 0.5rem 0;
+        }
+
+        .sync-data {
+            text-align: left;
+            width: 100%;
+            color: var(--text-dimmer);
+            font-size: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .data-label { color: var(--accent-latency); }
+        .data-value { color: var(--accent-green); text-transform: uppercase;}
+
+        .resync-btn {
+            background: rgba(192, 132, 252, 0.2);
+            color: var(--btn-pink);
+            border: 1px solid rgba(192, 132, 252, 0.4);
+            padding: 8px 15px;
+            font-size: 0.7rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+            text-transform: uppercase;
+        }
+
+        /* Custom progress bar from State 2 */
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(100, 116, 139, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 2rem;
+        }
+
+        #syncProgress {
+            width: 0%;
+            height: 100%;
+            background: var(--btn-cyan);
+            transition: width 0.1s linear;
+        }
+
+        /* STATE 3: PLAYBACK & IMMERSE */
+        #state-playback .visual-waveform {
+            font-size: 8rem;
+            line-height: 1;
+            color: var(--accent-green);
+        }
+
+        .active-label {
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+
+        #playBtn {
+            font-size: 2.5rem;
+            color: var(--text-main);
+            background: none;
+            border: none;
+            cursor: pointer;
+            margin: 1rem 0;
+        }
+
+        #playBtn:focus { outline: none; }
+    
+        /* Volume control (hidden by default in design, needed for player) */
+        .volume-control {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            color: var(--text-dim);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-green);
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="phone-mockup">
+        <header>
+            <h1 class="main-title">Façade Experience UI</h1>
+            <div class="experience-header">
+                <span class="circle-icon"></span>
+                <span>Experience Journey</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="state active" id="state-landing">
+                <div style="font-size: 5rem; color: var(--btn-cyan); opacity: 0.4;">...<span style="font-size: 0.7em;">→</span></div>
+
+                <label for="audioUpload" class="btn btn-sync">Tap to Listen</label>
+                <input type="file" id="audioUpload" accept="audio/*" style="display: none;">
+
+                <p class="text-description">"'Tap to Listen' button unlocks audio and syncs with server clock."</p>
+                <p class="sub-text">Scan complete. Connect state.</p>
+                
+                <div class="hand-graphic">👉</div>
+            </div>
+
+            <div class="state" id="state-syncing">
+                <button class="btn btn-sync" id="syncStatusBtn">Syncing...</button>
+
+                <div class="visual-sphere">
+                    <span style="opacity: 0.5;">🌐</span>
+                    <div class="timestamp" id="syncTime">00:00:00.000</div>
+                </div>
+
+                <p class="sync-label">Syncing to Server Clock...</p>
+                
+                <button class="resync-btn">Resync</button>
+
+                <div class="sync-data">
+                    <span class="data-label">Latency: <span style="color:var(--accent-green);">-5ms</span></span>
+                    <span class="data-value" id="finalSyncLabel"></span>
+                </div>
+
+                <div class="progress-bar-container">
+                    <div id="syncProgress"></div>
+                </div>
+            </div>
+
+            <div class="state" id="state-playback">
+                <div class="active-label">
+                    <span style="color:var(--text-main); font-weight:700;">ACTIVE.</span><br>
+                    Listen in Perfect Sync.
+                </div>
+
+                <div class="visual-waveform">📊</div>
+                
+                <button id="playBtn">▶️</button>
+
+                <p class="text-description" id="trackNameDisplay">Audio plays in perfect sync<br>with the façade visuals.</p>
+                <p class="sub-text">Watch the projection. (ID: 10243)</p>
+                
+                <div class="volume-control">
+                    <span>🔈</span>
+                    <input type="range" id="volumeBar" min="0" max="100" value="80">
+                    <span>🔊</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // HTML5 Audio Element (created in memory)
+        const audio = new Audio();
+        audio.volume = 0.8;
+        let isSyncing = false;
+
+        // UI STATE ELEMENTS
+        const states = {
+            landing: document.getElementById('state-landing'),
+            syncing: document.getElementById('state-syncing'),
+            playback: document.getElementById('state-playback')
+        };
+
+        // UI ELEMENTS - LANDING
+        const audioUpload = document.getElementById('audioUpload');
+
+        // UI ELEMENTS - SYNCING
+        const syncTimeDisplay = document.getElementById('syncTime');
+        const syncProgress = document.getElementById('syncProgress');
+        const syncStatusBtn = document.getElementById('syncStatusBtn');
+        const finalSyncLabel = document.getElementById('finalSyncLabel');
+
+        // UI ELEMENTS - PLAYBACK
+        const trackNameDisplay = document.getElementById('trackNameDisplay');
+        const playBtn = document.getElementById('playBtn');
+        const volumeBar = document.getElementById('volumeBar');
+
+        // Function to handle switching between UI states
+        function setUIState(newState) {
+            // Hide all states
+            Object.values(states).forEach(state => state.classList.remove('active'));
+            // Show the new state
+            states[newState].classList.add('active');
+        }
+
+        // ==========================================
+        // FLOW: LANDING -> SYNCING
+        // ==========================================
+        
+        // 1. Acknowledge and load audio file (Triggers JOURNEY)
+        audioUpload.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                // Load the file into the player (ready to go)
+                audio.src = URL.createObjectURL(file);
+                
+                // Switch to SYNCING state and start simulation
+                setUIState('syncing');
+                simulateSyncProcess(file.name);
+            }
+        });
+
+        // ==========================================
+        // FLOW: SYNCING -> PLAYBACK (Simulated)
+        // ==========================================
+        
+        function simulateSyncProcess(trackName) {
+            isSyncing = true;
+            let progress = 0;
+            const startTime = Date.milliSeconds;
+
+            // Reset Syncing UI
+            syncStatusBtn.textContent = "Syncing...";
+            syncStatusBtn.classList.add('btn-sync');
+            syncProgress.style.width = "0%";
+            finalSyncLabel.textContent = "";
+
+            // Interval 1: Update the simulated server timestamp rapidly
+            const timeInterval = setInterval(() => {
+                const now = new Date();
+                const h = String(now.getHours()).padStart(2, '0');
+                const m = String(now.getMinutes()).padStart(2, '0');
+                const s = String(now.getSeconds()).padStart(2, '0');
+                const ms = String(now.getMilliseconds()).padStart(3, '0');
+                syncTimeDisplay.textContent = `${h}:${m}:${s}.${ms}`;
+            }, 10);
+
+            // Interval 2: Fill the progress bar slowly
+            const progressInterval = setInterval(() => {
+                progress += 2.5; // Simulate 4 seconds (40 steps * 100ms)
+                syncProgress.style.width = `${progress}%`;
+
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    clearInterval(timeInterval);
+                    onSyncComplete(trackName);
+                }
+            }, 100);
+        }
+
+        // Action when syncing logic finishes
+        function onSyncComplete(trackName) {
+            isSyncing = false;
+            
+            // Replicate design for success state
+            syncStatusBtn.textContent = "Sync Complete!";
+            syncStatusBtn.style.color = "var(--text-main)";
+            syncStatusBtn.classList.remove('btn-sync');
+            syncStatusBtn.style.background = "rgba(74, 222, 128, 0.2)"; // Dim green background
+            finalSyncLabel.textContent = "Sync Complete!";
+
+            // Delay transitioning to playback for dramatic effect
+            setTimeout(() => {
+                // Switch to PLAYBACK state
+                setUIState('playback');
+                
+                // Load the track info and start playback
+                trackNameDisplay.innerHTML = `${trackName.replace(/\.[^/.]+$/, "")}<br> Watch the projection.`;
+                audio.play(); // Auto-play is unlocked by the 'change' gesture on the file input!
+                playBtn.textContent = '⏸️'; // Pause symbol
+            }, 1500);
+        }
+
+        // ==========================================
+        // PLAYBACK STATE LOGIC
+        // ==========================================
+        
+        // Play/Pause button
+        playBtn.addEventListener('click', () => {
+            if (audio.paused) {
+                audio.play();
+                playBtn.textContent = '⏸️';
+            } else {
+                audio.pause();
+                playBtn.textContent = '▶️';
+            }
+        });
+
+        // Volume control
+        volumeBar.addEventListener('input', () => {
+            audio.volume = volumeBar.value / 100;
+        });
+
+        // Reset flow when song ends
+        audio.addEventListener('ended', () => {
+            audio.currentTime = 0;
+            playBtn.textContent = '▶️';
+        });
+
+    </script>
+</body>
+</html>
