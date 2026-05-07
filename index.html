@@ -361,30 +361,46 @@
         }
 
         // ==========================================
-        // PERFECT SYNC: SERVER CALIBRATION
+        // PERFECT SYNC: MULTI-PING SERVER CALIBRATION
         // ==========================================
         
         // Run this immediately on page load to establish the master clock
         async function calibrateWithServer() {
-            const start = performance.now();
+            let bestOffset = 0;
+            let lowestLatency = Infinity;
+            const pingCount = 4; // Ping 4 times to find the cleanest network path
+
             try {
-                // Fetch high-accuracy time from a public API
-                const response = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC');
-                const data = await response.json();
-                const end = performance.now();
+                for (let i = 0; i < pingCount; i++) {
+                    const start = performance.now();
+                    
+                    // Adding a random cache-buster to ensure we don't get a cached HTTP response
+                    const response = await fetch(`https://worldtimeapi.org/api/timezone/Etc/UTC?nocache=${Math.random()}`);
+                    const data = await response.json();
+                    
+                    const end = performance.now();
+                    const rtt = end - start; // Total Round Trip Time
+                    
+                    // If this ping was faster than our previous best, use this data!
+                    if (rtt < lowestLatency) {
+                        lowestLatency = rtt;
+                        const networkDelay = rtt / 2;
+                        const serverMs = new Date(data.utc_datetime).getTime();
+                        
+                        // Calculate how far off the phone's clock is from the server
+                        bestOffset = serverMs - (Date.now() - networkDelay);
+                    }
+                }
                 
-                const serverMs = new Date(data.utc_datetime).getTime();
-                const networkDelay = (end - start) / 2;
-                
-                // Calculate how far off the phone's clock is from the server
-                serverOffset = serverMs - (Date.now() - networkDelay);
+                serverOffset = bestOffset;
                 isCalibrated = true;
                 
                 // Update the UI with actual network latency
-                latencyDisplay.textContent = `-${Math.round(networkDelay)}ms`;
-                console.log(`Sync calibrated. Server Offset: ${serverOffset}ms`);
+                latencyDisplay.textContent = `-${Math.round(lowestLatency / 2)}ms`;
+                console.log(`Sync calibrated. Server Offset: ${serverOffset}ms (Best RTT: ${lowestLatency}ms)`);
+                
             } catch (e) {
-                console.error("Sync failed, falling back to local clock.");
+                console.error("Sync failed, falling back to local clock.", e);
                 latencyDisplay.textContent = `Local Fallback`;
             }
         }
@@ -400,7 +416,7 @@
             // Create a Date object for the synced time
             const syncedDate = new Date(exactNow);
             
-            // FIX: Force absolute UTC midnight to avoid Timezone Drift across different user phones
+            // Force absolute UTC midnight to avoid Timezone Drift across different user phones
             const midnight = new Date(Date.UTC(syncedDate.getUTCFullYear(), syncedDate.getUTCMonth(), syncedDate.getUTCDate(), 0, 0, 0));
             
             const msElapsedToday = exactNow - midnight.getTime();
@@ -420,7 +436,7 @@
             // LOAD FROM URL
             audio.src = "https://files.cvaultx.com/wp-content/uploads/music/2024/11/Labisi_-_Ife_CeeNaija.com_.mp3"; 
     
-            // FIX: Safari Hack (Mute, Play, Pause, Unmute to avoid race conditions)
+            // Safari Hack (Mute, Play, Pause, Unmute to avoid race conditions)
             audio.muted = true;
             audio.play().then(() => {
                 audio.pause();
@@ -428,7 +444,7 @@
             }).catch(err => console.log("Audio unlock failed:", err));
 
             setUIState('syncing');
-            // FIX: Updated track name for UI
+            // Updated track name for UI
             simulateSyncProcess("Labisi - Ife");
         });
 
@@ -474,7 +490,7 @@
                 setUIState('playback');
                 trackNameDisplay.innerHTML = `${trackName}<br> Watch the projection.`;
                 
-                // FIX: Removed iOS Autoplay bug. Prep the jump time, but wait for the user to hit PLAY.
+                // Prep the jump time, but wait for the user to hit PLAY.
                 if (audio.duration) {
                     audio.currentTime = getPerfectSyncTime(audio.duration);
                 } else {
