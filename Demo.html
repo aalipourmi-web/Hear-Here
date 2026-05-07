@@ -277,8 +277,7 @@
             <div class="state active" id="state-landing">
                 <div style="font-size: 5rem; color: var(--btn-cyan); opacity: 0.4;">...<span style="font-size: 0.7em;">→</span></div>
 
-                <label for="audioUpload" class="btn btn-sync">Tap to Listen</label>
-                <input type="file" id="audioUpload" accept="audio/*" style="display: none;">
+                <button id="startDemoBtn" class="btn btn-sync">Tap to Listen</button>
 
                 <p class="text-description">"'Tap to Listen' button unlocks audio and syncs with server clock."</p>
                 <p class="sub-text">Scan complete. Connect state.</p>
@@ -369,17 +368,22 @@
         // FLOW: LANDING -> SYNCING
         // ==========================================
         
-        // 1. Acknowledge and load audio file (Triggers JOURNEY)
-        audioUpload.addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                // Load the file into the player (ready to go)
-                audio.src = URL.createObjectURL(file);
-                
-                // Switch to SYNCING state and start simulation
-                setUIState('syncing');
-                simulateSyncProcess(file.name);
-            }
+        // 1. Start Demo Journey (No upload required)
+        const startDemoBtn = document.getElementById('startDemoBtn');
+
+        startDemoBtn.addEventListener('click', function() {
+            // A. Use a safe, public audio file as our "Template"
+            audio.src = "https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg"; 
+    
+            // B. The "Safari Hack": We must tell the browser to play and immediately pause 
+            // exactly when the user taps. This "unlocks" the audio hardware for later.
+            audio.play().then(() => {
+                audio.pause();
+            }).catch(err => console.log("Audio unlock failed:", err));
+
+            // C. Switch UI and start the fake sync animation
+            setUIState('syncing');
+            simulateSyncProcess("HBK_Façade_Sync_Track");
         });
 
         // ==========================================
