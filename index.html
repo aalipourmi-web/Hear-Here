@@ -397,9 +397,11 @@
             // Get the "True" time by adjusting local time with our calculated offset
             const exactNow = Date.now() + serverOffset;
             
-            // Create a Date object for the synced time to find midnight
+            // Create a Date object for the synced time
             const syncedDate = new Date(exactNow);
-            const midnight = new Date(syncedDate.getFullYear(), syncedDate.getMonth(), syncedDate.getDate(), 0, 0, 0);
+            
+            // FIX: Force absolute UTC midnight to avoid Timezone Drift across different user phones
+            const midnight = new Date(Date.UTC(syncedDate.getUTCFullYear(), syncedDate.getUTCMonth(), syncedDate.getUTCDate(), 0, 0, 0));
             
             const msElapsedToday = exactNow - midnight.getTime();
             const durationMs = durationSeconds * 1000;
@@ -415,16 +417,19 @@
         const startDemoBtn = document.getElementById('startDemoBtn');
 
         startDemoBtn.addEventListener('click', function() {
-            // LOAD LOCAL FILE: Ensure this matches your GitHub upload exactly!
+            // LOAD FROM URL
             audio.src = "https://files.cvaultx.com/wp-content/uploads/music/2024/11/Labisi_-_Ife_CeeNaija.com_.mp3"; 
     
-            // Safari Hack: Unlock audio context
+            // FIX: Safari Hack (Mute, Play, Pause, Unmute to avoid race conditions)
+            audio.muted = true;
             audio.play().then(() => {
                 audio.pause();
+                audio.muted = false;
             }).catch(err => console.log("Audio unlock failed:", err));
 
             setUIState('syncing');
-            simulateSyncProcess("background-music.mp3");
+            // FIX: Updated track name for UI
+            simulateSyncProcess("Labisi - Ife");
         });
 
         // ==========================================
@@ -469,12 +474,13 @@
                 setUIState('playback');
                 trackNameDisplay.innerHTML = `${trackName}<br> Watch the projection.`;
                 
-                // Auto-start synced playback if audio metadata is ready
+                // FIX: Removed iOS Autoplay bug. Prep the jump time, but wait for the user to hit PLAY.
                 if (audio.duration) {
-                    startSyncedPlayback();
+                    audio.currentTime = getPerfectSyncTime(audio.duration);
                 } else {
-                    // Wait for metadata if it hasn't loaded yet
-                    audio.addEventListener('loadedmetadata', startSyncedPlayback, { once: true });
+                    audio.addEventListener('loadedmetadata', () => {
+                         audio.currentTime = getPerfectSyncTime(audio.duration);
+                    }, { once: true });
                 }
             }, 1500);
         }
@@ -484,6 +490,7 @@
         // ==========================================
         
         function startSyncedPlayback() {
+            // Jump to the exact sync point right before playing
             const jumpTo = getPerfectSyncTime(audio.duration);
             audio.currentTime = jumpTo;
             audio.play();
