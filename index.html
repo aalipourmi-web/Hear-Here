@@ -243,7 +243,7 @@
 
         #playBtn:focus { outline: none; }
     
-        /* Volume control (hidden by default in design, needed for player) */
+        /* Volume control */
         .volume-control {
             width: 100%;
             display: flex;
@@ -295,10 +295,10 @@
 
                 <p class="sync-label">Syncing to Server Clock...</p>
                 
-                <button class="resync-btn">Resync</button>
+                <button class="resync-btn" onclick="calibrateWithServer()">Resync</button>
 
                 <div class="sync-data">
-                    <span class="data-label">Latency: <span style="color:var(--accent-green);">-5ms</span></span>
+                    <span class="data-label">Latency: <span id="latencyDisplay" style="color:var(--accent-green);">Calculating...</span></span>
                     <span class="data-value" id="finalSyncLabel"></span>
                 </div>
 
@@ -318,7 +318,7 @@
                 <button id="playBtn">▶️</button>
 
                 <p class="text-description" id="trackNameDisplay">Audio plays in perfect sync<br>with the façade visuals.</p>
-                <p class="sub-text">Watch the projection. (ID: 10243)</p>
+                <p class="sub-text">Watch the projection.</p>
                 
                 <div class="volume-control">
                     <span>🔈</span>
@@ -330,10 +330,13 @@
     </div>
 
     <script>
-        // HTML5 Audio Element (created in memory)
+        // HTML5 Audio Element
         const audio = new Audio();
         audio.volume = 0.8;
-        let isSyncing = false;
+        
+        // SERVER SYNC VARIABLES
+        let serverOffset = 0;
+        let isCalibrated = false;
 
         // UI STATE ELEMENTS
         const states = {
@@ -342,78 +345,109 @@
             playback: document.getElementById('state-playback')
         };
 
-        // UI ELEMENTS - LANDING
-        const audioUpload = document.getElementById('audioUpload');
-
-        // UI ELEMENTS - SYNCING
+        // UI ELEMENTS
         const syncTimeDisplay = document.getElementById('syncTime');
         const syncProgress = document.getElementById('syncProgress');
         const syncStatusBtn = document.getElementById('syncStatusBtn');
         const finalSyncLabel = document.getElementById('finalSyncLabel');
-
-        // UI ELEMENTS - PLAYBACK
+        const latencyDisplay = document.getElementById('latencyDisplay');
         const trackNameDisplay = document.getElementById('trackNameDisplay');
         const playBtn = document.getElementById('playBtn');
         const volumeBar = document.getElementById('volumeBar');
 
-        // Function to handle switching between UI states
         function setUIState(newState) {
-            // Hide all states
             Object.values(states).forEach(state => state.classList.remove('active'));
-            // Show the new state
             states[newState].classList.add('active');
+        }
+
+        // ==========================================
+        // PERFECT SYNC: SERVER CALIBRATION
+        // ==========================================
+        
+        // Run this immediately on page load to establish the master clock
+        async function calibrateWithServer() {
+            const start = performance.now();
+            try {
+                // Fetch high-accuracy time from a public API
+                const response = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC');
+                const data = await response.json();
+                const end = performance.now();
+                
+                const serverMs = new Date(data.utc_datetime).getTime();
+                const networkDelay = (end - start) / 2;
+                
+                // Calculate how far off the phone's clock is from the server
+                serverOffset = serverMs - (Date.now() - networkDelay);
+                isCalibrated = true;
+                
+                // Update the UI with actual network latency
+                latencyDisplay.textContent = `-${Math.round(networkDelay)}ms`;
+                console.log(`Sync calibrated. Server Offset: ${serverOffset}ms`);
+            } catch (e) {
+                console.error("Sync failed, falling back to local clock.");
+                latencyDisplay.textContent = `Local Fallback`;
+            }
+        }
+        
+        // Start calibration immediately
+        calibrateWithServer();
+
+        // Calculate exact playback position based on time of day
+        function getPerfectSyncTime(durationSeconds) {
+            // Get the "True" time by adjusting local time with our calculated offset
+            const exactNow = Date.now() + serverOffset;
+            
+            // Create a Date object for the synced time to find midnight
+            const syncedDate = new Date(exactNow);
+            const midnight = new Date(syncedDate.getFullYear(), syncedDate.getMonth(), syncedDate.getDate(), 0, 0, 0);
+            
+            const msElapsedToday = exactNow - midnight.getTime();
+            const durationMs = durationSeconds * 1000;
+            
+            // Return seconds for the audio player
+            return (msElapsedToday % durationMs) / 1000;
         }
 
         // ==========================================
         // FLOW: LANDING -> SYNCING
         // ==========================================
         
-        // 1. Start Demo Journey (No upload required)
         const startDemoBtn = document.getElementById('startDemoBtn');
 
         startDemoBtn.addEventListener('click', function() {
-            // A. Use a safe, public audio file as our "Template"
+            // LOAD LOCAL FILE: Ensure this matches your GitHub upload exactly!
             audio.src = "https://files.cvaultx.com/wp-content/uploads/music/2024/11/Labisi_-_Ife_CeeNaija.com_.mp3"; 
     
-            // B. The "Safari Hack": We must tell the browser to play and immediately pause 
-            // exactly when the user taps. This "unlocks" the audio hardware for later.
+            // Safari Hack: Unlock audio context
             audio.play().then(() => {
                 audio.pause();
             }).catch(err => console.log("Audio unlock failed:", err));
 
-            // C. Switch UI and start the fake sync animation
             setUIState('syncing');
-            simulateSyncProcess("HBK_Façade_Sync_Track");
+            simulateSyncProcess("background-music.mp3");
         });
 
         // ==========================================
-        // FLOW: SYNCING -> PLAYBACK (Simulated)
+        // FLOW: SYNCING -> PLAYBACK
         // ==========================================
         
         function simulateSyncProcess(trackName) {
-            isSyncing = true;
             let progress = 0;
-            const startTime = Date.milliSeconds;
 
-            // Reset Syncing UI
-            syncStatusBtn.textContent = "Syncing...";
-            syncStatusBtn.classList.add('btn-sync');
-            syncProgress.style.width = "0%";
-            finalSyncLabel.textContent = "";
-
-            // Interval 1: Update the simulated server timestamp rapidly
+            // Interval 1: Update the simulated server timestamp rapidly using True Time
             const timeInterval = setInterval(() => {
-                const now = new Date();
+                const exactNow = Date.now() + serverOffset;
+                const now = new Date(exactNow);
                 const h = String(now.getHours()).padStart(2, '0');
                 const m = String(now.getMinutes()).padStart(2, '0');
                 const s = String(now.getSeconds()).padStart(2, '0');
                 const ms = String(now.getMilliseconds()).padStart(3, '0');
                 syncTimeDisplay.textContent = `${h}:${m}:${s}.${ms}`;
-            }, 10);
+            }, 20);
 
-            // Interval 2: Fill the progress bar slowly
+            // Interval 2: Fill the progress bar slowly for visual effect
             const progressInterval = setInterval(() => {
-                progress += 2.5; // Simulate 4 seconds (40 steps * 100ms)
+                progress += 2.5; 
                 syncProgress.style.width = `${progress}%`;
 
                 if (progress >= 100) {
@@ -424,26 +458,24 @@
             }, 100);
         }
 
-        // Action when syncing logic finishes
         function onSyncComplete(trackName) {
-            isSyncing = false;
-            
-            // Replicate design for success state
             syncStatusBtn.textContent = "Sync Complete!";
             syncStatusBtn.style.color = "var(--text-main)";
             syncStatusBtn.classList.remove('btn-sync');
-            syncStatusBtn.style.background = "rgba(74, 222, 128, 0.2)"; // Dim green background
+            syncStatusBtn.style.background = "rgba(74, 222, 128, 0.2)";
             finalSyncLabel.textContent = "Sync Complete!";
 
-            // Delay transitioning to playback for dramatic effect
             setTimeout(() => {
-                // Switch to PLAYBACK state
                 setUIState('playback');
+                trackNameDisplay.innerHTML = `${trackName}<br> Watch the projection.`;
                 
-                // Load the track info and start playback
-                trackNameDisplay.innerHTML = `${trackName.replace(/\.[^/.]+$/, "")}<br> Watch the projection.`;
-                audio.play(); // Auto-play is unlocked by the 'change' gesture on the file input!
-                playBtn.textContent = '⏸️'; // Pause symbol
+                // Auto-start synced playback if audio metadata is ready
+                if (audio.duration) {
+                    startSyncedPlayback();
+                } else {
+                    // Wait for metadata if it hasn't loaded yet
+                    audio.addEventListener('loadedmetadata', startSyncedPlayback, { once: true });
+                }
             }, 1500);
         }
 
@@ -451,11 +483,17 @@
         // PLAYBACK STATE LOGIC
         // ==========================================
         
+        function startSyncedPlayback() {
+            const jumpTo = getPerfectSyncTime(audio.duration);
+            audio.currentTime = jumpTo;
+            audio.play();
+            playBtn.textContent = '⏸️';
+        }
+
         // Play/Pause button
         playBtn.addEventListener('click', () => {
             if (audio.paused) {
-                audio.play();
-                playBtn.textContent = '⏸️';
+                startSyncedPlayback();
             } else {
                 audio.pause();
                 playBtn.textContent = '▶️';
@@ -467,10 +505,9 @@
             audio.volume = volumeBar.value / 100;
         });
 
-        // Reset flow when song ends
+        // When song ends naturally, seamlessly calculate next loop position
         audio.addEventListener('ended', () => {
-            audio.currentTime = 0;
-            playBtn.textContent = '▶️';
+            startSyncedPlayback();
         });
 
     </script>
